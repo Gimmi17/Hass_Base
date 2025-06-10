@@ -42,7 +42,7 @@ LABEL \
     org.opencontainers.image.vendor="Home Assistant Community Add-ons" \
     org.opencontainers.image.authors="Tu <tu@example.com>" \
     org.opencontainers.image.licenses="MIT" \
-    org.opencontainers.image.url="https://github.com/tuoupensource/tamagotchi-addon" \
+    org.opencontainers.image.url="https://github.com/Gimmi17/Hass_Base" \
     org.opencontainers.image.source="https://github.com/${BUILD_REPOSITORY}" \
     org.opencontainers.image.documentation="https://github.com/${BUILD_REPOSITORY}/blob/main/README.md" \
     org.opencontainers.image.created=${BUILD_DATE} \

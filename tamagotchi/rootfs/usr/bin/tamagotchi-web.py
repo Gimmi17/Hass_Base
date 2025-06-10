@@ -29,7 +29,8 @@ except ImportError:
         def log_error(msg): print(f"ERROR: {msg}")
     bashio = MockBashio()
 
-app = Flask(__name__)
+import os
+app = Flask(__name__, template_folder=os.path.dirname(os.path.abspath(__file__)) + '/templates')
 app.config['SECRET_KEY'] = 'tamagotchi_secret_key'
 socketio = SocketIO(app, cors_allowed_origins="*")
 

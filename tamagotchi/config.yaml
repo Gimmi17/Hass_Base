@@ -1,9 +1,9 @@
 ---
 name: Tamagotchi
-version: 1.0.1
+version: 1.0.4
 slug: tamagotchi
 description: Un Tamagotchi virtuale per Home Assistant
-url: https://github.com/tuoupensource/tamagotchi-addon
+url: https://github.com/Gimmi17/Hass_Base
 init: false
 arch:
   - aarch64

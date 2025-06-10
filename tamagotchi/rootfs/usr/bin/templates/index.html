@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🐣 Tamagotchi</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <!-- Rimosso SocketIO per compatibilità Python 3.12 -->
     <style>
         * {
             margin: 0;
@@ -342,20 +342,22 @@
     </div>
 
     <script>
-        const socket = io();
         let currentState = null;
 
-        // Connessione WebSocket
-        socket.on('connect', function() {
-            console.log('Connesso al server');
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('main-content').style.display = 'block';
-        });
-
-        socket.on('state_update', function(state) {
-            currentState = state;
-            updateUI(state);
-        });
+        // Polling invece di WebSocket
+        async function loadTamagotchiState() {
+            try {
+                const response = await fetch('/api/state');
+                const state = await response.json();
+                currentState = state;
+                updateUI(state);
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('main-content').style.display = 'block';
+            } catch (error) {
+                console.error('Errore nel caricamento stato:', error);
+                setTimeout(loadTamagotchiState, 5000); // Riprova tra 5 secondi
+            }
+        }
 
         // Funzioni di utilità
         function getAvatarForStage(stage, status) {
@@ -450,11 +452,13 @@
 
                 const result = await response.json();
                 
-                if (result.success) {
-                    showMessage(result.message, 'success');
-                } else {
-                    showMessage(result.message, 'error');
-                }
+                                 if (result.success) {
+                     showMessage(result.message, 'success');
+                     // Ricarica lo stato dopo un'azione
+                     setTimeout(loadTamagotchiState, 1000);
+                 } else {
+                     showMessage(result.message, 'error');
+                 }
             } catch (error) {
                 showMessage('Errore di connessione', 'error');
                 console.error('Errore:', error);
@@ -475,10 +479,12 @@
             }, 5000);
         }
 
-        // Inizializzazione
-        document.addEventListener('DOMContentLoaded', function() {
-            socket.emit('get_state');
-        });
+                 // Inizializzazione
+         document.addEventListener('DOMContentLoaded', function() {
+             loadTamagotchiState();
+             // Polling ogni 30 secondi
+             setInterval(loadTamagotchiState, 30000);
+         });
     </script>
 </body>
 </html> 

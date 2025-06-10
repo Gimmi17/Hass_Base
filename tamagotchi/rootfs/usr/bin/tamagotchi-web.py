@@ -9,7 +9,6 @@ import os
 import sys
 from datetime import datetime
 from flask import Flask, render_template, jsonify, request
-from flask_socketio import SocketIO, emit
 import threading
 import time
 
@@ -32,7 +31,6 @@ except ImportError:
 import os
 app = Flask(__name__, template_folder=os.path.dirname(os.path.abspath(__file__)) + '/templates')
 app.config['SECRET_KEY'] = 'tamagotchi_secret_key'
-socketio = SocketIO(app, cors_allowed_origins="*")
 
 class TamagotchiWebInterface:
     def __init__(self):
@@ -157,46 +155,17 @@ def perform_action():
     action = request.json.get('action')
     success, message = tamagotchi.perform_action(action)
     
-    # Emetti aggiornamento via WebSocket
-    if success:
-        new_state = tamagotchi.load_state()
-        socketio.emit('state_update', new_state)
+    # Aggiornamento completato
     
     return jsonify({
         'success': success,
         'message': message
     })
 
-@socketio.on('connect')
-def handle_connect():
-    """Gestisce connessione WebSocket"""
-    bashio.log_info("Client connesso via WebSocket")
-    state = tamagotchi.load_state()
-    emit('state_update', state)
-
-@socketio.on('get_state')
-def handle_get_state():
-    """Gestisce richiesta stato via WebSocket"""
-    state = tamagotchi.load_state()
-    emit('state_update', state)
-
-def background_updates():
-    """Thread per aggiornamenti in background"""
-    while True:
-        try:
-            state = tamagotchi.load_state()
-            socketio.emit('state_update', state)
-            time.sleep(30)  # Aggiorna ogni 30 secondi
-        except Exception as e:
-            bashio.log_error(f"Errore nel background update: {e}")
-            time.sleep(60)
+# Nessun WebSocket per ora - usiamo polling
 
 if __name__ == '__main__':
     bashio.log_info("Avvio server web Tamagotchi...")
     
-    # Avvia thread per aggiornamenti in background
-    update_thread = threading.Thread(target=background_updates, daemon=True)
-    update_thread.start()
-    
-    # Avvia server
-    socketio.run(app, host='0.0.0.0', port=8080, debug=False) 
+    # Avvia server Flask normale
+    app.run(host='0.0.0.0', port=8080, debug=False) 

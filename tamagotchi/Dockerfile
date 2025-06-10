@@ -16,9 +16,7 @@ RUN apk add --no-cache \
 
 # Install Python packages
 RUN pip3 install --no-cache-dir \
-    flask-socketio==5.3.6 \
-    python-socketio==5.8.0 \
-    eventlet==0.33.3
+    requests
 
 # Build arguments
 ARG BUILD_ARCH

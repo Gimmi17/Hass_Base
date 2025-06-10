@@ -1,0 +1,34 @@
+---
+name: Tamagotchi
+version: dev
+slug: tamagotchi
+description: Un Tamagotchi virtuale per Home Assistant
+url: https://github.com/tuoupensource/tamagotchi-addon
+init: false
+arch:
+  - aarch64
+  - amd64
+  - armv7
+startup: system
+boot: auto
+ports:
+  8080/tcp: 8080
+webui: http://[HOST]:[PORT:8080]
+options:
+  log_level: info
+  save_interval: 60
+  difficulty: normal
+  starting_stats:
+    hunger: 100
+    happiness: 100
+    health: 100
+    energy: 100
+schema:
+  log_level: list(trace|debug|info|notice|warning|error|fatal)
+  save_interval: int(30,300)
+  difficulty: list(easy|normal|hard)
+  starting_stats:
+    hunger: int(50,100)
+    happiness: int(50,100)
+    health: int(50,100)
+    energy: int(50,100) 

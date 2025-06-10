@@ -1,0 +1,10 @@
+#!/command/with-contenv bashio
+# shellcheck shell=bash
+# ==============================================================================
+# Home Assistant Community Add-on: Tamagotchi
+# Runs the Tamagotchi game engine
+# ==============================================================================
+
+bashio::log.info "Starting Tamagotchi Game Engine..."
+
+exec /usr/bin/tamagotchi-engine.py 

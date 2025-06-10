@@ -7,12 +7,12 @@ COPY rootfs /
 
 # Install Python, Flask and other dependencies
 RUN apk add --no-cache \
-    python3=3.11.10-r0 \
-    python3-dev=3.11.10-r0 \
-    py3-pip=23.1.2-r0 \
-    py3-flask=2.3.3-r0 \
-    py3-requests=2.31.0-r0 \
-    jq=1.6-r4
+    python3 \
+    python3-dev \
+    py3-pip \
+    py3-flask \
+    py3-requests \
+    jq
 
 # Install Python packages
 RUN pip3 install --no-cache-dir \

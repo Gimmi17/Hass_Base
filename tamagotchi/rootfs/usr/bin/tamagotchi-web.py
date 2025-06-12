@@ -83,72 +83,124 @@ class HomeAssistantAPI:
         }
     
     def get_areas(self):
-        """Ottiene la lista delle aree/stanze reali da Home Assistant"""
-        # Prova prima ad ottenere le aree reali
-        if not self.use_mock:
-            try:
-                # Metodo 1: Prova API Area Registry (richiede hassio_role: homeassistant)
-                response = requests.get(f"{self.base_url}/config/area_registry", headers=self.headers, timeout=5)
-                if response.status_code == 200:
-                    areas = response.json()
-                    if areas:
-                        real_areas = [{"id": area["area_id"], "name": area["name"]} for area in areas]
-                        bashio.log_info(f"✅ Trovate {len(real_areas)} aree reali da Home Assistant")
-                        return real_areas
-                else:
-                    bashio.log_warning(f"Area Registry API error: {response.status_code}")
-            except Exception as e:
-                bashio.log_error(f"Errore accesso Area Registry: {e}")
-            
-            # Metodo 2: Ricava aree dai nomi degli stati
-            try:
-                response = requests.get(f"{self.base_url}/states", headers=self.headers, timeout=5)
-                if response.status_code == 200:
-                    states = response.json()
-                    discovered_areas = set()
-                    
-                    # Analizza i nomi delle entità per scoprire le aree
-                    for state in states:
-                        entity_id = state["entity_id"]
-                        friendly_name = state["attributes"].get("friendly_name", "").lower()
+        """Ottiene SOLO le aree reali che hanno dispositivi effettivi"""
+        try:
+            # Metodo 1: Prova API Area Registry (richiede hassio_role: homeassistant)
+            response = requests.get(f"{self.base_url}/config/area_registry", headers=self.headers, timeout=5)
+            if response.status_code == 200:
+                area_registry = response.json()
+                if area_registry:
+                    # Ottieni dispositivi per ogni area registrata
+                    real_areas = []
+                    for area in area_registry:
+                        area_id = area["area_id"]
+                        area_name = area["name"]
                         
-                        # Cerca parole chiave nelle entità
-                        for keyword, area_id in [
-                            ("salotto", "living_room"), ("living", "living_room"), ("soggiorno", "living_room"),
-                            ("cucina", "kitchen"), ("kitchen", "kitchen"),
-                            ("camera", "bedroom"), ("bedroom", "bedroom"), ("letto", "bedroom"),
-                            ("bagno", "bathroom"), ("bathroom", "bathroom"),
-                            ("garage", "garage"), ("cantina", "garage"), ("box", "garage"),
-                            ("ufficio", "office"), ("studio", "office"), ("office", "office"),
-                            ("giardino", "garden"), ("garden", "garden"), ("terrazzo", "garden")
-                        ]:
-                            if keyword in entity_id.lower() or keyword in friendly_name:
-                                discovered_areas.add(area_id)
+                        # Controlla se l'area ha dispositivi
+                        devices = self.get_area_devices_for_validation(area_id, area_name)
+                        if devices:  # Solo se ci sono dispositivi
+                            real_areas.append({"id": area_id, "name": area_name})
                     
-                    if discovered_areas:
-                        area_names = {
-                            "living_room": "Salotto", "kitchen": "Cucina", "bedroom": "Camera da Letto",
-                            "bathroom": "Bagno", "garage": "Garage", "office": "Ufficio", "garden": "Giardino"
-                        }
-                        real_areas = [{"id": area_id, "name": area_names[area_id]} 
-                                    for area_id in sorted(discovered_areas)]
-                        bashio.log_info(f"✅ Scoperte {len(real_areas)} aree dai nomi delle entità")
+                    if real_areas:
+                        bashio.log_info(f"✅ Trovate {len(real_areas)} aree reali con dispositivi")
                         return real_areas
-                        
-            except Exception as e:
-                bashio.log_error(f"Errore analisi entità: {e}")
+            else:
+                bashio.log_warning(f"Area Registry API non disponibile: {response.status_code}")
+        except Exception as e:
+            bashio.log_error(f"Errore accesso Area Registry: {e}")
         
-        # Fallback: aree standard
-        bashio.log_info("🏠 Usando aree standard di default")
-        return [
-            {"id": "living_room", "name": "Salotto"},
-            {"id": "kitchen", "name": "Cucina"},
-            {"id": "bedroom", "name": "Camera da Letto"},
-            {"id": "bathroom", "name": "Bagno"},
-            {"id": "garage", "name": "Garage"},
-            {"id": "office", "name": "Ufficio"},
-            {"id": "garden", "name": "Giardino"}
-        ]
+        # Metodo 2: Scopri aree dai dispositivi esistenti
+        try:
+            response = requests.get(f"{self.base_url}/states", headers=self.headers, timeout=5)
+            if response.status_code == 200:
+                states = response.json()
+                discovered_areas = {}
+                
+                # Mappa parole chiave comuni a ID area
+                keyword_map = {
+                    "salotto": "salotto", "living": "salotto", "soggiorno": "salotto", "sala": "salotto",
+                    "cucina": "cucina", "kitchen": "cucina",
+                    "camera": "camera", "bedroom": "camera", "letto": "camera", "cameretta": "camera",
+                    "bagno": "bagno", "bathroom": "bagno", "wc": "bagno",
+                    "garage": "garage", "cantina": "garage", "box": "garage",
+                    "studio": "studio", "ufficio": "studio", "office": "studio",
+                    "giardino": "giardino", "garden": "giardino", "terrazzo": "giardino", "esterno": "giardino",
+                    "ingresso": "ingresso", "entrance": "ingresso", "entrata": "ingresso",
+                    "corridoio": "corridoio", "hallway": "corridoio",
+                    "lavanderia": "lavanderia", "laundry": "lavanderia"
+                }
+                
+                # Analizza ogni entità per scoprire aree
+                for state in states:
+                    entity_id = state["entity_id"]
+                    domain = entity_id.split(".")[0]
+                    
+                    # Solo domini controllabili
+                    if domain in ["light", "switch", "fan", "climate", "cover", "media_player", "sensor"]:
+                        friendly_name = state["attributes"].get("friendly_name", "").lower()
+                        entity_lower = entity_id.lower()
+                        
+                        # Cerca corrispondenze con parole chiave
+                        for keyword, area_id in keyword_map.items():
+                            if keyword in entity_lower or keyword in friendly_name:
+                                if area_id not in discovered_areas:
+                                    discovered_areas[area_id] = {
+                                        "id": area_id,
+                                        "name": area_id.capitalize(),
+                                        "device_count": 0
+                                    }
+                                discovered_areas[area_id]["device_count"] += 1
+                                break
+                
+                # Ritorna solo le aree che hanno almeno 1 dispositivo
+                real_areas = [area for area in discovered_areas.values() if area["device_count"] > 0]
+                
+                if real_areas:
+                    bashio.log_info(f"✅ Scoperte {len(real_areas)} aree dai dispositivi reali:")
+                    for area in real_areas:
+                        bashio.log_info(f"  - {area['name']}: {area['device_count']} dispositivi")
+                    
+                    # Rimuovi il conteggio per l'output finale
+                    return [{"id": area["id"], "name": area["name"]} for area in real_areas]
+                
+        except Exception as e:
+            bashio.log_error(f"Errore analisi dispositivi reali: {e}")
+        
+        # Ultimo fallback: almeno il salotto se non troviamo nulla
+        bashio.log_warning("⚠️ Nessuna area trovata, usando fallback minimo")
+        return [{"id": "salotto", "name": "Casa"}]
+    
+    def get_area_devices_for_validation(self, area_id, area_name):
+        """Metodo di validazione per controllare se un'area ha dispositivi (per Area Registry)"""
+        try:
+            response = requests.get(f"{self.base_url}/states", headers=self.headers, timeout=5)
+            if response.status_code != 200:
+                return []
+            
+            states = response.json()
+            area_name_lower = area_name.lower()
+            devices = []
+            
+            for state in states:
+                entity_id = state["entity_id"]
+                domain = entity_id.split(".")[0]
+                
+                if domain in ["light", "switch", "fan", "climate", "cover", "media_player"]:
+                    friendly_name = state["attributes"].get("friendly_name", "").lower()
+                    entity_lower = entity_id.lower()
+                    
+                    # Cerca corrispondenze con il nome dell'area
+                    if area_name_lower in entity_lower or area_name_lower in friendly_name:
+                        devices.append(entity_id)
+                        
+                        if len(devices) >= 3:  # Limit per performance
+                            break
+            
+            return devices
+            
+        except Exception as e:
+            bashio.log_error(f"Errore validazione area {area_name}: {e}")
+            return []
     
     def get_area_devices(self, area_id):
         """Ottiene i dispositivi di un'area specifica usando solo API pubbliche"""
@@ -158,24 +210,30 @@ class HomeAssistantAPI:
             
             if response.status_code != 200:
                 bashio.log_warning(f"Errore API states: {response.status_code}")
-                return self._get_fallback_devices(area_id)
+                return []
             
             states = response.json()
-            bashio.log_info(f"Ottenuti {len(states)} stati da Home Assistant")
+            bashio.log_info(f"Ottenuti {len(states)} stati da Home Assistant per area {area_id}")
             
             # Filtra dispositivi controllabili
             devices = []
-            area_keywords = {
-                "living_room": ["salotto", "living", "soggiorno", "sala"],
-                "kitchen": ["cucina", "kitchen"],
-                "bedroom": ["camera", "bedroom", "letto", "cameretta"],
-                "bathroom": ["bagno", "bathroom"],
+            
+            # Mappa dinamica delle parole chiave per area
+            area_keywords_map = {
+                "salotto": ["salotto", "living", "soggiorno", "sala"],
+                "cucina": ["cucina", "kitchen"],
+                "camera": ["camera", "bedroom", "letto", "cameretta"],
+                "bagno": ["bagno", "bathroom", "wc"],
                 "garage": ["garage", "cantina", "box"],
-                "office": ["ufficio", "studio", "office"],
-                "garden": ["giardino", "garden", "esterno", "terrazzo"]
+                "studio": ["studio", "ufficio", "office"],
+                "giardino": ["giardino", "garden", "terrazzo", "esterno"],
+                "ingresso": ["ingresso", "entrance", "entrata"],
+                "corridoio": ["corridoio", "hallway"],
+                "lavanderia": ["lavanderia", "laundry"]
             }
             
-            keywords = area_keywords.get(area_id, [])
+            # Ottieni le parole chiave per l'area richiesta
+            keywords = area_keywords_map.get(area_id, [area_id])
             
             for state in states:
                 entity_id = state["entity_id"]
@@ -188,7 +246,7 @@ class HomeAssistantAPI:
                     name_lower = friendly_name.lower()
                     
                     # Filtra per parole chiave nell'entity_id o friendly_name
-                    if keywords and any(keyword in name_lower or keyword in entity_lower for keyword in keywords):
+                    if any(keyword in name_lower or keyword in entity_lower for keyword in keywords):
                         devices.append({
                             "entity_id": entity_id,
                             "name": friendly_name,
@@ -197,61 +255,12 @@ class HomeAssistantAPI:
                             "attributes": state["attributes"]
                         })
             
-            # Se non troviamo dispositivi con keywords, prendi i primi per dominio
-            if not devices and not keywords:
-                for state in states:
-                    entity_id = state["entity_id"]
-                    domain = entity_id.split(".")[0]
-                    
-                    if domain in ["light", "switch", "fan", "climate", "cover"]:
-                        devices.append({
-                            "entity_id": entity_id,
-                            "name": state["attributes"].get("friendly_name", entity_id),
-                            "state": state["state"],
-                            "domain": domain,
-                            "attributes": state["attributes"]
-                        })
-                        
-                        if len(devices) >= 5:  # Limite di 5 per area
-                            break
-            
-            bashio.log_info(f"Trovati {len(devices)} dispositivi per area {area_id}")
+            bashio.log_info(f"Trovati {len(devices)} dispositivi reali per area {area_id}")
             return devices[:8]  # Massimo 8 dispositivi per area
             
         except Exception as e:
             bashio.log_error(f"Errore ottenimento dispositivi per area {area_id}: {e}")
-            return self._get_fallback_devices(area_id)
-    
-    def _get_fallback_devices(self, area_id):
-        """Dispositivi di fallback - prende alcuni dispositivi generici"""
-        bashio.log_info(f"Usando dispositivi di fallback per {area_id}")
-        
-        # Mock semplificato con dispositivi comuni
-        mock_devices = {
-            "living_room": [
-                {"entity_id": "light.living_room", "name": "Luce Salotto", "state": "off", "domain": "light"},
-                {"entity_id": "switch.tv", "name": "TV", "state": "off", "domain": "switch"}
-            ],
-            "kitchen": [
-                {"entity_id": "light.kitchen", "name": "Luce Cucina", "state": "on", "domain": "light"}
-            ],
-            "bedroom": [
-                {"entity_id": "light.bedroom", "name": "Luce Camera", "state": "off", "domain": "light"}
-            ],
-            "bathroom": [
-                {"entity_id": "light.bathroom", "name": "Luce Bagno", "state": "off", "domain": "light"}
-            ],
-            "garage": [
-                {"entity_id": "cover.garage", "name": "Porta Garage", "state": "closed", "domain": "cover"}
-            ],
-            "office": [
-                {"entity_id": "light.office", "name": "Luce Ufficio", "state": "off", "domain": "light"}
-            ],
-            "garden": [
-                {"entity_id": "light.garden", "name": "Luce Giardino", "state": "off", "domain": "light"}
-            ]
-        }
-        return mock_devices.get(area_id, [])
+            return []
     
     def control_device(self, entity_id, service, service_data=None):
         """Controlla un dispositivo"""

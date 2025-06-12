@@ -498,17 +498,33 @@
             
             // Avatar basati sulla stanza
             const roomAvatars = {
+                'salotto': {
+                    'egg': '🥚', 'baby': '🐣📺', 'teen_good': '🐤🛋️', 'teen_bad': '🐦📱',
+                    'adult_excellent': '🦅👔', 'adult_good': '🐧📖', 'adult_average': '🦆☕'
+                },
                 'living_room': {
                     'egg': '🥚', 'baby': '🐣📺', 'teen_good': '🐤🛋️', 'teen_bad': '🐦📱',
                     'adult_excellent': '🦅👔', 'adult_good': '🐧📖', 'adult_average': '🦆☕'
+                },
+                'cucina': {
+                    'egg': '🥚', 'baby': '🐣🍼', 'teen_good': '🐤🍪', 'teen_bad': '🐦🍕',
+                    'adult_excellent': '🦅👨‍🍳', 'adult_good': '🐧🥘', 'adult_average': '🦆🍞'
                 },
                 'kitchen': {
                     'egg': '🥚', 'baby': '🐣🍼', 'teen_good': '🐤🍪', 'teen_bad': '🐦🍕',
                     'adult_excellent': '🦅👨‍🍳', 'adult_good': '🐧🥘', 'adult_average': '🦆🍞'
                 },
+                'camera': {
+                    'egg': '🥚', 'baby': '🐣😴', 'teen_good': '🐤🛏️', 'teen_bad': '🐦🎮',
+                    'adult_excellent': '🦅💼', 'adult_good': '🐧📚', 'adult_average': '🦆😪'
+                },
                 'bedroom': {
                     'egg': '🥚', 'baby': '🐣😴', 'teen_good': '🐤🛏️', 'teen_bad': '🐦🎮',
                     'adult_excellent': '🦅💼', 'adult_good': '🐧📚', 'adult_average': '🦆😪'
+                },
+                'bagno': {
+                    'egg': '🥚', 'baby': '🐣🛁', 'teen_good': '🐤🚿', 'teen_bad': '🐦🪥',
+                    'adult_excellent': '🦅💄', 'adult_good': '🐧🧴', 'adult_average': '🦆🚽'
                 },
                 'bathroom': {
                     'egg': '🥚', 'baby': '🐣🛁', 'teen_good': '🐤🚿', 'teen_bad': '🐦🪥',
@@ -517,6 +533,22 @@
                 'garage': {
                     'egg': '🥚', 'baby': '🐣🔧', 'teen_good': '🐤🚗', 'teen_bad': '🐦⚙️',
                     'adult_excellent': '🦅🏎️', 'adult_good': '🐧🔨', 'adult_average': '🦆🛠️'
+                },
+                'studio': {
+                    'egg': '🥚', 'baby': '🐣💻', 'teen_good': '🐤📚', 'teen_bad': '🐦🎮',
+                    'adult_excellent': '🦅💼', 'adult_good': '🐧📊', 'adult_average': '🦆⌨️'
+                },
+                'office': {
+                    'egg': '🥚', 'baby': '🐣💻', 'teen_good': '🐤📚', 'teen_bad': '🐦🎮',
+                    'adult_excellent': '🦅💼', 'adult_good': '🐧📊', 'adult_average': '🦆⌨️'
+                },
+                'giardino': {
+                    'egg': '🥚', 'baby': '🐣🌱', 'teen_good': '🐤🌸', 'teen_bad': '🐦🌿',
+                    'adult_excellent': '🦅🌳', 'adult_good': '🐧🌺', 'adult_average': '🦆🌾'
+                },
+                'garden': {
+                    'egg': '🥚', 'baby': '🐣🌱', 'teen_good': '🐤🌸', 'teen_bad': '🐦🌿',
+                    'adult_excellent': '🦅🌳', 'adult_good': '🐧🌺', 'adult_average': '🦆🌾'
                 }
             };
             
@@ -649,25 +681,26 @@
 
         function getRoomIcon(roomId) {
             const icons = {
+                'salotto': '🛋️',
                 'living_room': '🛋️',
-                'kitchen': '🍳',
+                'cucina': '🍽️',
+                'kitchen': '🍽️',
+                'camera': '🛏️',
                 'bedroom': '🛏️',
+                'bagno': '🚿',
                 'bathroom': '🚿',
                 'garage': '🚗',
-                'office': '💻',
-                'garden': '🌿',
-                'sala': '🛋️',
-                'soggiorno': '🛋️',
-                'cucina': '🍳',
-                'camera': '🛏️',
-                'cameretta': '🛏️',
-                'bagno': '🚿',
-                'ufficio': '💻',
                 'studio': '💻',
-                'giardino': '🌿',
-                'terrazzo': '🌿',
-                'cantina': '🚗',
-                'box': '🚗'
+                'office': '💻',
+                'ufficio': '💻',
+                'giardino': '🌱',
+                'garden': '🌱',
+                'ingresso': '🚪',
+                'entrance': '🚪',
+                'corridoio': '🚶',
+                'hallway': '🚶',
+                'lavanderia': '🧺',
+                'laundry': '🧺'
             };
             return icons[roomId] || '🏠';
         }

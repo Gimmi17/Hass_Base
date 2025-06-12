@@ -141,7 +141,7 @@ class TamagotchiEngine:
                     self.state['stats']['energy']) / 3
         
         if avg_stats < 30:
-            self.state['stats']['health'] = max(0, 
+            self.state['stats']['health'] = max(1, 
                 self.state['stats']['health'] - (time_diff * 0.5))
         elif avg_stats > 70:
             self.state['stats']['health'] = min(100,
@@ -157,8 +157,9 @@ class TamagotchiEngine:
         """Aggiorna lo stato del Tamagotchi basato sulle statistiche"""
         stats = self.state['stats']
         
-        if stats['health'] <= 0:
-            self.state['status'] = 'dead'
+        # Tamagotchi non può più morire - minimo 1 HP
+        if stats['health'] <= 1:
+            self.state['status'] = 'critical'
         elif any(stat < 20 for stat in [stats['hunger'], stats['happiness'], stats['energy']]):
             self.state['status'] = 'critical'
         elif any(stat < 40 for stat in [stats['hunger'], stats['happiness'], stats['energy']]):

@@ -493,7 +493,8 @@
 
         // Funzioni di utilità
         function getAvatarForStage(stage, status, room) {
-            if (status === 'dead') return '💀';
+            if (status === 'dead') return '🪦'; // Tomba invece di teschio per morte
+            if (status === 'critical') return '🤕'; // Ferito per stato critico
             
             // Avatar basati sulla stanza
             const roomAvatars = {
@@ -542,7 +543,7 @@
                 'happy': 'Felice',
                 'very_happy': 'Molto Felice',
                 'sad': 'Triste',
-                'critical': 'Critico',
+                'critical': 'Critico - Serve aiuto!',
                 'sleepy': 'Assonnato',
                 'hungry': 'Affamato',
                 'dead': 'Morto'

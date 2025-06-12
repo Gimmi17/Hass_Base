@@ -340,18 +340,22 @@ class TamagotchiWebInterface:
         """Esegue un'azione sul Tamagotchi"""
         state = self.load_state()
         
+        # Se il Tamagotchi è morto, riportalo in vita con 1 HP
+        if state['status'] == 'dead':
+            state['stats']['health'] = 1
+            state['stats']['hunger'] = 50
+            state['stats']['happiness'] = 50
+            state['stats']['energy'] = 50
+            state['status'] = 'critical'
+            bashio.log_info("Tamagotchi resuscitato con 1 HP!")
+        
         if action == 'feed':
-            if state['status'] == 'dead':
-                return False, "Il Tamagotchi è morto..."
-            
             state['stats']['hunger'] = min(100, state['stats']['hunger'] + 20)
             state['stats']['happiness'] = min(100, state['stats']['happiness'] + 5)
             state['total_care_score'] = min(100, state['total_care_score'] + 1)
             message = "Yum! Il tuo Tamagotchi è stato nutrito!"
             
         elif action == 'play':
-            if state['status'] == 'dead':
-                return False, "Il Tamagotchi è morto..."
             if state['stats']['energy'] < 20:
                 return False, "Il Tamagotchi è troppo stanco per giocare!"
             
@@ -361,16 +365,11 @@ class TamagotchiWebInterface:
             message = "Che divertimento! Il tuo Tamagotchi è felice!"
             
         elif action == 'sleep':
-            if state['status'] == 'dead':
-                return False, "Il Tamagotchi è morto..."
-            
             state['stats']['energy'] = min(100, state['stats']['energy'] + 30)
             state['stats']['health'] = min(100, state['stats']['health'] + 5)
             message = "Zzz... Il tuo Tamagotchi si sta riposando!"
             
         elif action == 'medicine':
-            if state['status'] == 'dead':
-                return False, "Il Tamagotchi è morto..."
             if state['stats']['health'] > 80:
                 return False, "Il Tamagotchi è già in salute!"
             

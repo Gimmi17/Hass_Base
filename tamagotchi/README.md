@@ -2,6 +2,16 @@
 
 Un **Tamagotchi virtuale integrato** che diventa il centro di controllo della tua casa intelligente! Il tuo animale virtuale non solo cresce e si evolve, ma si sposta anche tra le stanze della casa e ti aiuta a controllare tutti i dispositivi.
 
+## ✨ Caratteristiche
+
+- 🐣 **Sistema completo di virtual pet** - Il tuo Tamagotchi ha bisogno di cure costanti
+- 📊 **Statistiche in tempo reale** - Fame, felicità, salute ed energia
+- 🌱 **Sistema di evoluzione** - Da uovo a adulto in base alle tue cure
+- 🏠 **Integrazione Home Assistant** - Muoviti tra le stanze e controlla i dispositivi
+- 🎮 **Interfaccia moderna** - Design responsive e animazioni
+- 💾 **Salvataggio automatico** - I tuoi progressi sono sempre al sicuro
+- 🔄 **Sistema di resurrezione** - Il tuo Tamagotchi non muore mai permanentemente!
+
 ## ✨ Funzionalità
 
 ### 🐾 **Core Tamagotchi**

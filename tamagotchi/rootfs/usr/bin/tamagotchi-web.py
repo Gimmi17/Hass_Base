@@ -39,19 +39,42 @@ app.config['SECRET_KEY'] = 'tamagotchi_secret_key'
 
 class HomeAssistantAPI:
     def __init__(self):
-        # Home Assistant Supervisor API
+        # Home Assistant Supervisor API - Fix del path corretto
         self.base_url = "http://supervisor/core/api"
-        try:
-            # Token di autenticazione per add-on
-            self.token = os.environ.get('SUPERVISOR_TOKEN', '')
-            if not self.token:
-                # Fallback per sviluppo locale
-                self.token = "test_token"
-                self.base_url = "http://localhost:8123/api"
-        except:
-            bashio.log_warning("Impossibile ottenere token Home Assistant")
-            self.token = ""
+        self.token = ""
         
+        # Prova a ottenere il token in vari modi
+        try:
+            # Metodo 1: Variabile ambiente standard
+            self.token = os.environ.get('SUPERVISOR_TOKEN')
+            if not self.token:
+                # Metodo 2: File token del supervisor
+                try:
+                    with open('/run/secrets/SUPERVISOR_TOKEN', 'r') as f:
+                        self.token = f.read().strip()
+                except:
+                    pass
+            
+            if not self.token:
+                # Metodo 3: Token dall'add-on info
+                try:
+                    addon_info = bashio.addon_info()
+                    if addon_info and 'ingress_token' in addon_info:
+                        self.token = addon_info['ingress_token']
+                except:
+                    pass
+                    
+            if not self.token:
+                bashio.log_warning("Token Home Assistant non trovato - usando dispositivi mock")
+                self.use_mock = True
+            else:
+                bashio.log_info("Token Home Assistant ottenuto con successo")
+                self.use_mock = False
+                
+        except Exception as e:
+            bashio.log_error(f"Errore ottenimento token: {e}")
+            self.use_mock = True
+            
         self.headers = {
             'Authorization': f'Bearer {self.token}',
             'Content-Type': 'application/json'
@@ -59,17 +82,28 @@ class HomeAssistantAPI:
     
     def get_areas(self):
         """Ottiene la lista delle aree/stanze"""
+        if self.use_mock:
+            return [
+                {"id": "living_room", "name": "Salotto"},
+                {"id": "kitchen", "name": "Cucina"},
+                {"id": "bedroom", "name": "Camera da Letto"},
+                {"id": "bathroom", "name": "Bagno"},
+                {"id": "garage", "name": "Garage"}
+            ]
+            
         try:
             response = requests.get(f"{self.base_url}/config/area_registry", headers=self.headers, timeout=5)
             if response.status_code == 200:
                 areas = response.json()
+                bashio.log_info(f"Trovate {len(areas)} aree in Home Assistant")
                 return [{"id": area["area_id"], "name": area["name"]} for area in areas]
             else:
-                bashio.log_warning(f"Errore API aree: {response.status_code}")
+                bashio.log_warning(f"Errore API aree: {response.status_code} - {response.text}")
         except Exception as e:
-            bashio.log_error(f"Errore connessione Home Assistant: {e}")
+            bashio.log_error(f"Errore connessione Home Assistant per aree: {e}")
         
         # Aree di default se non riusciamo a connetterci
+        bashio.log_info("Usando aree di default")
         return [
             {"id": "living_room", "name": "Salotto"},
             {"id": "kitchen", "name": "Cucina"},
@@ -80,32 +114,116 @@ class HomeAssistantAPI:
     
     def get_area_devices(self, area_id):
         """Ottiene i dispositivi di un'area specifica"""
+        if self.use_mock:
+            mock_devices = {
+                "living_room": [
+                    {"entity_id": "light.salotto", "name": "Luce Salotto", "state": "off", "domain": "light"},
+                    {"entity_id": "switch.tv", "name": "TV", "state": "off", "domain": "switch"}
+                ],
+                "kitchen": [
+                    {"entity_id": "light.cucina", "name": "Luce Cucina", "state": "on", "domain": "light"}
+                ],
+                "bedroom": [
+                    {"entity_id": "light.camera", "name": "Luce Camera", "state": "off", "domain": "light"}
+                ],
+                "bathroom": [
+                    {"entity_id": "light.bagno", "name": "Luce Bagno", "state": "off", "domain": "light"}
+                ],
+                "garage": [
+                    {"entity_id": "cover.garage", "name": "Porta Garage", "state": "closed", "domain": "cover"}
+                ]
+            }
+            return mock_devices.get(area_id, [])
+            
         try:
-            # Ottieni tutti gli stati
+            # Step 1: Ottieni il device registry per mappare dispositivi ad aree
+            device_registry_response = requests.get(f"{self.base_url}/config/device_registry", headers=self.headers, timeout=5)
+            entity_registry_response = requests.get(f"{self.base_url}/config/entity_registry", headers=self.headers, timeout=5)
+            states_response = requests.get(f"{self.base_url}/states", headers=self.headers, timeout=5)
+            
+            if not all(r.status_code == 200 for r in [device_registry_response, entity_registry_response, states_response]):
+                bashio.log_warning("Errore nel recupero registri Home Assistant")
+                return self._get_fallback_devices(area_id)
+            
+            devices_data = device_registry_response.json()
+            entities_data = entity_registry_response.json()
+            states_data = states_response.json()
+            
+            # Mappa device_id -> area_id
+            device_area_map = {device["id"]: device.get("area_id") for device in devices_data}
+            
+            # Mappa entity_id -> device_id
+            entity_device_map = {entity["entity_id"]: entity.get("device_id") for entity in entities_data}
+            
+            # Trova entità per l'area specifica
+            area_entities = []
+            for entity in entities_data:
+                entity_id = entity["entity_id"]
+                entity_area = entity.get("area_id")  # Entità può avere area diretta
+                device_id = entity.get("device_id")
+                
+                # Controlla se l'entità è nell'area (direttamente o tramite device)
+                if entity_area == area_id or (device_id and device_area_map.get(device_id) == area_id):
+                    domain = entity_id.split(".")[0]
+                    # Solo domini controllabili
+                    if domain in ["light", "switch", "fan", "climate", "cover"]:
+                        # Trova lo stato corrispondente
+                        state_data = next((s for s in states_data if s["entity_id"] == entity_id), None)
+                        if state_data:
+                            area_entities.append({
+                                "entity_id": entity_id,
+                                "name": state_data["attributes"].get("friendly_name", entity_id),
+                                "state": state_data["state"],
+                                "domain": domain,
+                                "attributes": state_data["attributes"]
+                            })
+            
+            bashio.log_info(f"Trovati {len(area_entities)} dispositivi per area {area_id}")
+            return area_entities[:8]  # Limita a 8 dispositivi per area
+            
+        except Exception as e:
+            bashio.log_error(f"Errore ottenimento dispositivi per area {area_id}: {e}")
+            return self._get_fallback_devices(area_id)
+    
+    def _get_fallback_devices(self, area_id):
+        """Dispositivi di fallback se le API non funzionano"""
+        try:
+            # Almeno prova a ottenere tutti i dispositivi e filtrare per nome
             response = requests.get(f"{self.base_url}/states", headers=self.headers, timeout=5)
             if response.status_code == 200:
                 states = response.json()
-                # Filtra per dispositivi controllabili (luci, interruttori, ecc.)
                 devices = []
+                area_keywords = {
+                    "living_room": ["salotto", "living", "soggiorno"],
+                    "kitchen": ["cucina", "kitchen"],
+                    "bedroom": ["camera", "bedroom", "letto"],
+                    "bathroom": ["bagno", "bathroom"],
+                    "garage": ["garage", "cantina"]
+                }
+                
+                keywords = area_keywords.get(area_id, [])
                 for state in states:
                     entity_id = state["entity_id"]
                     domain = entity_id.split(".")[0]
+                    name = state["attributes"].get("friendly_name", entity_id).lower()
                     
-                    # Solo domini controllabili
+                    # Filtra per dominio e parole chiave
                     if domain in ["light", "switch", "fan", "climate", "cover"]:
-                        devices.append({
-                            "entity_id": entity_id,
-                            "name": state["attributes"].get("friendly_name", entity_id),
-                            "state": state["state"],
-                            "domain": domain,
-                            "attributes": state["attributes"]
-                        })
+                        if any(keyword in name or keyword in entity_id.lower() for keyword in keywords):
+                            devices.append({
+                                "entity_id": entity_id,
+                                "name": state["attributes"].get("friendly_name", entity_id),
+                                "state": state["state"],
+                                "domain": domain,
+                                "attributes": state["attributes"]
+                            })
                 
-                return devices[:5]  # Limita a 5 dispositivi per area
+                bashio.log_info(f"Fallback: trovati {len(devices)} dispositivi per {area_id}")
+                return devices[:5]
         except Exception as e:
-            bashio.log_error(f"Errore ottenimento dispositivi: {e}")
+            bashio.log_error(f"Errore anche nel fallback: {e}")
         
-        # Dispositivi mock se non riusciamo a connetterci
+        # Ultima risorsa: dispositivi mock
         mock_devices = {
             "living_room": [
                 {"entity_id": "light.salotto", "name": "Luce Salotto", "state": "off", "domain": "light"},
@@ -128,6 +246,10 @@ class HomeAssistantAPI:
     
     def control_device(self, entity_id, service, service_data=None):
         """Controlla un dispositivo"""
+        if self.use_mock:
+            bashio.log_info(f"Mock: {service} su {entity_id}")
+            return True
+            
         try:
             domain = entity_id.split(".")[0]
             url = f"{self.base_url}/services/{domain}/{service}"
@@ -135,10 +257,28 @@ class HomeAssistantAPI:
             if service_data:
                 data.update(service_data)
             
-            response = requests.post(url, headers=self.headers, json=data, timeout=5)
-            return response.status_code == 200
+            bashio.log_info(f"Controllo dispositivo: {entity_id} -> {service}")
+            bashio.log_debug(f"URL: {url}")
+            bashio.log_debug(f"Data: {data}")
+            
+            response = requests.post(url, headers=self.headers, json=data, timeout=10)
+            
+            bashio.log_debug(f"Response status: {response.status_code}")
+            if response.status_code != 200:
+                bashio.log_error(f"Errore API Home Assistant: {response.status_code} - {response.text}")
+                return False
+                
+            bashio.log_info(f"Dispositivo {entity_id} controllato con successo")
+            return True
+            
+        except requests.exceptions.Timeout:
+            bashio.log_error(f"Timeout controllo dispositivo {entity_id}")
+            return False
+        except requests.exceptions.ConnectionError:
+            bashio.log_error(f"Errore connessione Home Assistant per {entity_id}")
+            return False
         except Exception as e:
-            bashio.log_error(f"Errore controllo dispositivo: {e}")
+            bashio.log_error(f"Errore controllo dispositivo {entity_id}: {e}")
             return False
 
 # Istanza globale

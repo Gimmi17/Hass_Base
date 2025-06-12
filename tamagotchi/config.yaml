@@ -1,6 +1,6 @@
 ---
 name: Tamagotchi
-version: 1.1.0
+version: 1.1.1
 slug: tamagotchi
 description: Un Tamagotchi virtuale integrato con Home Assistant - Controllo della casa tramite avatar virtuale
 url: https://github.com/Gimmi17/Hass_Base

@@ -1,6 +1,6 @@
 ---
 name: Tamagotchi
-version: 1.1.1
+version: 1.1.2
 slug: tamagotchi
 description: Un Tamagotchi virtuale integrato con Home Assistant - Controllo della casa tramite avatar virtuale
 url: https://github.com/Gimmi17/Hass_Base
@@ -14,6 +14,10 @@ boot: auto
 ports:
   8080/tcp: 8080
 webui: http://[HOST]:[PORT:8080]
+# Richiedi privilegi per accedere alle API di configurazione di Home Assistant
+hassio_api: true
+hassio_role: homeassistant
+auth_api: true
 options:
   log_level: info
   save_interval: 60

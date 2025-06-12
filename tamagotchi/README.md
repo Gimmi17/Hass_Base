@@ -69,9 +69,10 @@ In ogni stanza può controllare:
 
 ### 🔑 **Permessi Richiesti**
 L'add-on usa le **API interne di Home Assistant** per:
-- Leggere la lista delle aree/stanze
-- Ottenere lo stato dei dispositivi  
-- Controllare luci, interruttori, ecc.
+- 📋 **Leggere stati dispositivi** (sempre disponibile)
+- 🏠 **Scoprire aree/stanze** (intelligente: cerca nei nomi delle entità)
+- 🔌 **Controllare dispositivi** (luci, interruttori, climatizzatori, ecc.)
+- 🔧 **Accesso avanzato** (opzionale: per aree ufficiali di HA)
 
 ## 🎯 Esempio d'Uso
 

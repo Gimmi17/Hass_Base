@@ -210,6 +210,117 @@
             color: #666;
         }
 
+        .room-info {
+            background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .current-room h3 {
+            margin: 0 0 5px 0;
+            color: #1976d2;
+            font-size: 1.2em;
+        }
+
+        .current-room p {
+            margin: 0;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .rooms-section, .devices-section {
+            margin: 20px 0;
+        }
+
+        .rooms-section h3, .devices-section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .rooms-container, .devices-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+        }
+
+        .room-btn {
+            background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
+            border: none;
+            border-radius: 12px;
+            padding: 12px 8px;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #6a1b9a;
+            font-weight: bold;
+            min-height: 60px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .room-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(106, 27, 154, 0.3);
+        }
+
+        .room-btn.current {
+            background: linear-gradient(135deg, #6a1b9a 0%, #8e24aa 100%);
+            color: white;
+        }
+
+        .device-btn {
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 12px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            min-height: 80px;
+            justify-content: center;
+        }
+
+        .device-btn:hover {
+            transform: translateY(-2px);
+            border-color: #2196f3;
+            box-shadow: 0 5px 15px rgba(33, 150, 243, 0.2);
+        }
+
+        .device-btn.on {
+            background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%);
+            color: white;
+            border-color: #4caf50;
+        }
+
+        .device-btn.off {
+            background: linear-gradient(135deg, #f5f5f5 0%, #eeeeee 100%);
+            color: #666;
+            border-color: #ddd;
+        }
+
+        .device-icon {
+            font-size: 1.5em;
+            margin-bottom: 5px;
+        }
+
+        .device-name {
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        .device-state {
+            font-size: 0.7em;
+            opacity: 0.8;
+        }
+
         .status-critical { color: #e74c3c !important; animation: pulse 1s infinite; }
         .status-sad { color: #f39c12 !important; }
         .status-sleepy { color: #9b59b6 !important; }
@@ -288,6 +399,13 @@
                     <div class="care-score">Cura: <span id="care-score">100</span>% • Età: <span id="age">0</span> giorni</div>
                 </div>
 
+                <div class="room-info">
+                    <div class="current-room">
+                        <h3>📍 <span id="current-room-name">Salotto</span></h3>
+                        <p>Il tuo Tamagotchi è qui</p>
+                    </div>
+                </div>
+
                 <div class="tamagotchi-display">
                     <div class="tamagotchi-screen">
                         <div class="tamagotchi-avatar" id="avatar">🥚</div>
@@ -334,6 +452,20 @@
                     <button class="action-btn medicine" onclick="performAction('medicine')">💊 Medicina</button>
                 </div>
 
+                <div class="rooms-section">
+                    <h3>🏠 Stanze della Casa</h3>
+                    <div class="rooms-container" id="rooms-container">
+                        <!-- Le stanze verranno popolate dinamicamente -->
+                    </div>
+                </div>
+
+                <div class="devices-section" id="devices-section" style="display: none;">
+                    <h3>🔌 Dispositivi in <span id="devices-room-name">questa stanza</span></h3>
+                    <div class="devices-container" id="devices-container">
+                        <!-- I dispositivi verranno popolati dinamicamente -->
+                    </div>
+                </div>
+
                 <div class="message-area" id="message">
                     Benvenuto! Il tuo Tamagotchi ti aspetta!
                 </div>
@@ -360,20 +492,35 @@
         }
 
         // Funzioni di utilità
-        function getAvatarForStage(stage, status) {
+        function getAvatarForStage(stage, status, room) {
             if (status === 'dead') return '💀';
             
-            const avatars = {
-                'egg': '🥚',
-                'baby': '🐣',
-                'teen_good': '🐤',
-                'teen_bad': '🐦',
-                'adult_excellent': '🦅',
-                'adult_good': '🐧',
-                'adult_average': '🦆'
+            // Avatar basati sulla stanza
+            const roomAvatars = {
+                'living_room': {
+                    'egg': '🥚', 'baby': '🐣📺', 'teen_good': '🐤🛋️', 'teen_bad': '🐦📱',
+                    'adult_excellent': '🦅👔', 'adult_good': '🐧📖', 'adult_average': '🦆☕'
+                },
+                'kitchen': {
+                    'egg': '🥚', 'baby': '🐣🍼', 'teen_good': '🐤🍪', 'teen_bad': '🐦🍕',
+                    'adult_excellent': '🦅👨‍🍳', 'adult_good': '🐧🥘', 'adult_average': '🦆🍞'
+                },
+                'bedroom': {
+                    'egg': '🥚', 'baby': '🐣😴', 'teen_good': '🐤🛏️', 'teen_bad': '🐦🎮',
+                    'adult_excellent': '🦅💼', 'adult_good': '🐧📚', 'adult_average': '🦆😪'
+                },
+                'bathroom': {
+                    'egg': '🥚', 'baby': '🐣🛁', 'teen_good': '🐤🚿', 'teen_bad': '🐦🪥',
+                    'adult_excellent': '🦅💄', 'adult_good': '🐧🧴', 'adult_average': '🦆🚽'
+                },
+                'garage': {
+                    'egg': '🥚', 'baby': '🐣🔧', 'teen_good': '🐤🚗', 'teen_bad': '🐦⚙️',
+                    'adult_excellent': '🦅🏎️', 'adult_good': '🐧🔨', 'adult_average': '🦆🛠️'
+                }
             };
             
-            return avatars[stage] || '🐣';
+            const roomSet = roomAvatars[room] || roomAvatars['living_room'];
+            return roomSet[stage] || roomSet['baby'];
         }
 
         function getStageDisplayName(stage) {
@@ -413,8 +560,13 @@
             document.getElementById('age').textContent = state.stats.age_days || 0;
             document.getElementById('care-score').textContent = Math.round(state.total_care_score || 100);
             
-            // Aggiorna avatar e stadio
-            const avatar = getAvatarForStage(state.evolution_stage, state.status);
+            // Aggiorna stanza corrente
+            const currentRoom = state.current_room || 'living_room';
+            const roomName = state.rooms ? state.rooms.find(r => r.id === currentRoom)?.name || 'Sconosciuta' : 'Salotto';
+            document.getElementById('current-room-name').textContent = roomName;
+            
+            // Aggiorna avatar e stadio (con contesto della stanza)
+            const avatar = getAvatarForStage(state.evolution_stage, state.status, currentRoom);
             document.getElementById('avatar').textContent = avatar;
             document.getElementById('evolution-stage').textContent = getStageDisplayName(state.evolution_stage);
             
@@ -428,6 +580,16 @@
             updateStat('happiness', state.stats.happiness);
             updateStat('health', state.stats.health);
             updateStat('energy', state.stats.energy);
+
+            // Aggiorna stanze
+            if (state.rooms) {
+                updateRooms(state.rooms, currentRoom);
+            }
+
+            // Aggiorna dispositivi
+            if (state.current_room_devices) {
+                updateDevices(state.current_room_devices, roomName);
+            }
         }
 
         function updateStat(statName, value) {
@@ -437,6 +599,75 @@
             const percentage = Math.round(value || 0);
             valueElement.textContent = `${percentage}%`;
             barElement.style.width = `${percentage}%`;
+        }
+
+        function updateRooms(rooms, currentRoom) {
+            const container = document.getElementById('rooms-container');
+            container.innerHTML = '';
+            
+            rooms.forEach(room => {
+                const button = document.createElement('button');
+                button.className = `room-btn ${room.id === currentRoom ? 'current' : ''}`;
+                button.innerHTML = `
+                    <div>${getRoomIcon(room.id)}</div>
+                    <div>${room.name}</div>
+                `;
+                button.onclick = () => moveToRoom(room.id);
+                container.appendChild(button);
+            });
+        }
+
+        function updateDevices(devices, roomName) {
+            const container = document.getElementById('devices-container');
+            const section = document.getElementById('devices-section');
+            const roomNameElement = document.getElementById('devices-room-name');
+            
+            roomNameElement.textContent = roomName;
+            container.innerHTML = '';
+            
+            if (devices.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+            
+            section.style.display = 'block';
+            
+            devices.forEach(device => {
+                const button = document.createElement('button');
+                const isOn = device.state === 'on' || device.state === 'open';
+                button.className = `device-btn ${isOn ? 'on' : 'off'}`;
+                button.innerHTML = `
+                    <div class="device-icon">${getDeviceIcon(device.domain, isOn)}</div>
+                    <div class="device-name">${device.name}</div>
+                    <div class="device-state">${isOn ? 'Acceso' : 'Spento'}</div>
+                `;
+                button.onclick = () => toggleDevice(device);
+                container.appendChild(button);
+            });
+        }
+
+        function getRoomIcon(roomId) {
+            const icons = {
+                'living_room': '🛋️',
+                'kitchen': '🍳',
+                'bedroom': '🛏️',
+                'bathroom': '🚿',
+                'garage': '🚗',
+                'office': '💻',
+                'garden': '🌿'
+            };
+            return icons[roomId] || '🏠';
+        }
+
+        function getDeviceIcon(domain, isOn) {
+            const icons = {
+                'light': isOn ? '💡' : '🔅',
+                'switch': isOn ? '🔌' : '⚫',
+                'fan': isOn ? '🌀' : '⭕',
+                'climate': isOn ? '🌡️' : '❄️',
+                'cover': isOn ? '📂' : '📁'
+            };
+            return icons[domain] || (isOn ? '✅' : '❌');
         }
 
         // Esegui azione
@@ -462,6 +693,88 @@
             } catch (error) {
                 showMessage('Errore di connessione', 'error');
                 console.error('Errore:', error);
+            }
+        }
+
+        // Muovi il Tamagotchi in una stanza
+        async function moveToRoom(roomId) {
+            try {
+                const response = await fetch('/api/action', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        action: 'move_to_room',
+                        room_id: roomId
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage(result.message, 'success');
+                    // Aggiorna immediatamente lo stato
+                    setTimeout(loadTamagotchiState, 1000);
+                } else {
+                    showMessage(result.message, 'error');
+                }
+            } catch (error) {
+                console.error('Errore nel cambio stanza:', error);
+                showMessage('Errore nel cambio stanza', 'error');
+            }
+        }
+
+        // Controlla un dispositivo
+        async function toggleDevice(device) {
+            try {
+                const isOn = device.state === 'on' || device.state === 'open';
+                let service;
+                
+                // Determina il servizio da usare
+                switch (device.domain) {
+                    case 'light':
+                        service = isOn ? 'turn_off' : 'turn_on';
+                        break;
+                    case 'switch':
+                        service = isOn ? 'turn_off' : 'turn_on';
+                        break;
+                    case 'fan':
+                        service = isOn ? 'turn_off' : 'turn_on';
+                        break;
+                    case 'cover':
+                        service = isOn ? 'close_cover' : 'open_cover';
+                        break;
+                    case 'climate':
+                        service = isOn ? 'turn_off' : 'turn_on';
+                        break;
+                    default:
+                        service = isOn ? 'turn_off' : 'turn_on';
+                }
+
+                const response = await fetch('/api/device/control', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        entity_id: device.entity_id,
+                        service: service
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    showMessage(result.message, 'success');
+                    // Aggiorna lo stato per riflettere i cambiamenti
+                    setTimeout(loadTamagotchiState, 1000);
+                } else {
+                    showMessage(result.message, 'error');
+                }
+            } catch (error) {
+                console.error('Errore nel controllo dispositivo:', error);
+                showMessage('Errore nel controllo dispositivo', 'error');
             }
         }
 

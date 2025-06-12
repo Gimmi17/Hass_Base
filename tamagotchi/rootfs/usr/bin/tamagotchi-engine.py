@@ -140,12 +140,19 @@ class TamagotchiEngine:
                     self.state['stats']['happiness'] + 
                     self.state['stats']['energy']) / 3
         
-        if avg_stats < 30:
+        if avg_stats < 20:
+            # Stato molto critico - salute scende
             self.state['stats']['health'] = max(1, 
                 self.state['stats']['health'] - (time_diff * 0.5))
-        elif avg_stats > 70:
+        elif avg_stats < 40:
+            # Stato di recupero lento - salute sale molto lentamente
             self.state['stats']['health'] = min(100,
-                self.state['stats']['health'] + (time_diff * 0.2))
+                self.state['stats']['health'] + (time_diff * 0.1))
+        elif avg_stats > 60:
+            # Stato buono - salute sale normalmente
+            self.state['stats']['health'] = min(100,
+                self.state['stats']['health'] + (time_diff * 0.3))
+        # Se avg_stats è tra 40-60, salute rimane stabile
         
         # Aggiorna lo stato
         self.update_status()
@@ -157,12 +164,14 @@ class TamagotchiEngine:
         """Aggiorna lo stato del Tamagotchi basato sulle statistiche"""
         stats = self.state['stats']
         
-        # Tamagotchi non può più morire - minimo 1 HP
+        # Logica di stato migliorata per recupero graduale
         if stats['health'] <= 1:
             self.state['status'] = 'critical'
+        elif stats['health'] <= 15:
+            self.state['status'] = 'critical'  # Ancora critico ma può migliorare
         elif any(stat < 20 for stat in [stats['hunger'], stats['happiness'], stats['energy']]):
             self.state['status'] = 'critical'
-        elif any(stat < 40 for stat in [stats['hunger'], stats['happiness'], stats['energy']]):
+        elif stats['health'] <= 30 or any(stat < 40 for stat in [stats['hunger'], stats['happiness'], stats['energy']]):
             self.state['status'] = 'sad'
         elif stats['energy'] < 30:
             self.state['status'] = 'sleepy'
@@ -201,10 +210,17 @@ class TamagotchiEngine:
         if self.state['status'] == 'dead':
             return False, "Il Tamagotchi è morto..."
         
-        self.state['stats']['hunger'] = min(100, self.state['stats']['hunger'] + 20)
-        self.state['stats']['happiness'] = min(100, self.state['stats']['happiness'] + 5)
+        # Boost maggiore se in stato critico
+        hunger_boost = 30 if self.state['status'] == 'critical' else 20
+        happiness_boost = 10 if self.state['status'] == 'critical' else 5
+        
+        self.state['stats']['hunger'] = min(100, self.state['stats']['hunger'] + hunger_boost)
+        self.state['stats']['happiness'] = min(100, self.state['stats']['happiness'] + happiness_boost)
         self.state['activities']['last_fed'] = datetime.now().isoformat()
         self.state['total_care_score'] = min(100, self.state['total_care_score'] + 1)
+        
+        # Aggiorna subito lo stato dopo l'azione
+        self.update_status()
         
         bashio.log_info("Tamagotchi nutrito!")
         return True, "Yum! Il tuo Tamagotchi è stato nutrito!"
@@ -214,13 +230,20 @@ class TamagotchiEngine:
         if self.state['status'] == 'dead':
             return False, "Il Tamagotchi è morto..."
         
-        if self.state['stats']['energy'] < 20:
+        if self.state['stats']['energy'] < 15:
             return False, "Il Tamagotchi è troppo stanco per giocare!"
         
-        self.state['stats']['happiness'] = min(100, self.state['stats']['happiness'] + 15)
-        self.state['stats']['energy'] = max(0, self.state['stats']['energy'] - 10)
+        # Boost maggiore se in stato critico
+        happiness_boost = 25 if self.state['status'] == 'critical' else 15
+        energy_cost = 5 if self.state['status'] == 'critical' else 10
+        
+        self.state['stats']['happiness'] = min(100, self.state['stats']['happiness'] + happiness_boost)
+        self.state['stats']['energy'] = max(0, self.state['stats']['energy'] - energy_cost)
         self.state['activities']['last_played'] = datetime.now().isoformat()
         self.state['total_care_score'] = min(100, self.state['total_care_score'] + 2)
+        
+        # Aggiorna subito lo stato dopo l'azione
+        self.update_status()
         
         bashio.log_info("Hai giocato con il Tamagotchi!")
         return True, "Che divertimento! Il tuo Tamagotchi è felice!"
@@ -230,9 +253,16 @@ class TamagotchiEngine:
         if self.state['status'] == 'dead':
             return False, "Il Tamagotchi è morto..."
         
-        self.state['stats']['energy'] = min(100, self.state['stats']['energy'] + 30)
-        self.state['stats']['health'] = min(100, self.state['stats']['health'] + 5)
+        # Boost maggiore se in stato critico
+        energy_boost = 40 if self.state['status'] == 'critical' else 30
+        health_boost = 10 if self.state['status'] == 'critical' else 5
+        
+        self.state['stats']['energy'] = min(100, self.state['stats']['energy'] + energy_boost)
+        self.state['stats']['health'] = min(100, self.state['stats']['health'] + health_boost)
         self.state['activities']['last_sleep'] = datetime.now().isoformat()
+        
+        # Aggiorna subito lo stato dopo l'azione
+        self.update_status()
         
         bashio.log_info("Il Tamagotchi sta dormendo...")
         return True, "Zzz... Il tuo Tamagotchi si sta riposando!"
@@ -242,13 +272,20 @@ class TamagotchiEngine:
         if self.state['status'] == 'dead':
             return False, "Il Tamagotchi è morto..."
         
-        if self.state['stats']['health'] > 80:
-            return False, "Il Tamagotchi è già in salute!"
+        if self.state['stats']['health'] > 85:
+            return False, "Il Tamagotchi è già in ottima salute!"
         
-        self.state['stats']['health'] = min(100, self.state['stats']['health'] + 25)
-        self.state['stats']['happiness'] = max(0, self.state['stats']['happiness'] - 5)  # Non gli piace la medicina
+        # Boost molto maggiore se in stato critico
+        health_boost = 40 if self.state['status'] == 'critical' else 25
+        happiness_penalty = 3 if self.state['status'] == 'critical' else 5  # Meno penalità se critico
+        
+        self.state['stats']['health'] = min(100, self.state['stats']['health'] + health_boost)
+        self.state['stats']['happiness'] = max(0, self.state['stats']['happiness'] - happiness_penalty)
         self.state['activities']['last_medicine'] = datetime.now().isoformat()
         self.state['total_care_score'] = min(100, self.state['total_care_score'] + 3)
+        
+        # Aggiorna subito lo stato dopo l'azione
+        self.update_status()
         
         bashio.log_info("Medicina data al Tamagotchi!")
         return True, "Il tuo Tamagotchi si sente meglio!"

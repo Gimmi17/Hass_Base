@@ -359,33 +359,65 @@ class TamagotchiWebInterface:
             bashio.log_info("Tamagotchi resuscitato con 1 HP!")
         
         if action == 'feed':
-            state['stats']['hunger'] = min(100, state['stats']['hunger'] + 20)
-            state['stats']['happiness'] = min(100, state['stats']['happiness'] + 5)
+            # Boost maggiore se in stato critico
+            hunger_boost = 30 if state['status'] == 'critical' else 20
+            happiness_boost = 10 if state['status'] == 'critical' else 5
+            
+            state['stats']['hunger'] = min(100, state['stats']['hunger'] + hunger_boost)
+            state['stats']['happiness'] = min(100, state['stats']['happiness'] + happiness_boost)
             state['total_care_score'] = min(100, state['total_care_score'] + 1)
-            message = "Yum! Il tuo Tamagotchi è stato nutrito!"
+            
+            if state['status'] == 'critical':
+                message = "Nutrizione d'emergenza! Il tuo Tamagotchi si sente un po' meglio!"
+            else:
+                message = "Yum! Il tuo Tamagotchi è stato nutrito!"
             
         elif action == 'play':
-            if state['stats']['energy'] < 20:
+            if state['stats']['energy'] < 15:
                 return False, "Il Tamagotchi è troppo stanco per giocare!"
             
-            state['stats']['happiness'] = min(100, state['stats']['happiness'] + 15)
-            state['stats']['energy'] = max(0, state['stats']['energy'] - 10)
+            # Boost maggiore se in stato critico
+            happiness_boost = 25 if state['status'] == 'critical' else 15
+            energy_cost = 5 if state['status'] == 'critical' else 10
+            
+            state['stats']['happiness'] = min(100, state['stats']['happiness'] + happiness_boost)
+            state['stats']['energy'] = max(0, state['stats']['energy'] - energy_cost)
             state['total_care_score'] = min(100, state['total_care_score'] + 2)
-            message = "Che divertimento! Il tuo Tamagotchi è felice!"
+            
+            if state['status'] == 'critical':
+                message = "Gioco terapeutico! Il tuo Tamagotchi sorride un po'!"
+            else:
+                message = "Che divertimento! Il tuo Tamagotchi è felice!"
             
         elif action == 'sleep':
-            state['stats']['energy'] = min(100, state['stats']['energy'] + 30)
-            state['stats']['health'] = min(100, state['stats']['health'] + 5)
-            message = "Zzz... Il tuo Tamagotchi si sta riposando!"
+            # Boost maggiore se in stato critico
+            energy_boost = 40 if state['status'] == 'critical' else 30
+            health_boost = 10 if state['status'] == 'critical' else 5
+            
+            state['stats']['energy'] = min(100, state['stats']['energy'] + energy_boost)
+            state['stats']['health'] = min(100, state['stats']['health'] + health_boost)
+            
+            if state['status'] == 'critical':
+                message = "Riposo riparatore! Il tuo Tamagotchi recupera le forze!"
+            else:
+                message = "Zzz... Il tuo Tamagotchi si sta riposando!"
             
         elif action == 'medicine':
-            if state['stats']['health'] > 80:
-                return False, "Il Tamagotchi è già in salute!"
+            if state['stats']['health'] > 85:
+                return False, "Il Tamagotchi è già in ottima salute!"
             
-            state['stats']['health'] = min(100, state['stats']['health'] + 25)
-            state['stats']['happiness'] = max(0, state['stats']['happiness'] - 5)
+            # Boost molto maggiore se in stato critico
+            health_boost = 40 if state['status'] == 'critical' else 25
+            happiness_penalty = 3 if state['status'] == 'critical' else 5
+            
+            state['stats']['health'] = min(100, state['stats']['health'] + health_boost)
+            state['stats']['happiness'] = max(0, state['stats']['happiness'] - happiness_penalty)
             state['total_care_score'] = min(100, state['total_care_score'] + 3)
-            message = "Il tuo Tamagotchi si sente meglio!"
+            
+            if state['status'] == 'critical':
+                message = "Medicina d'emergenza! Il tuo Tamagotchi sta guarendo!"
+            else:
+                message = "Il tuo Tamagotchi si sente meglio!"
             
         elif action == 'rename':
             new_name = request.json.get('name', 'Tama')

@@ -84,11 +84,15 @@ class HomeAssistantAPI:
     
     def get_areas(self):
         """Ottiene SOLO le aree reali che hanno dispositivi effettivi"""
+        bashio.log_info("🏠 Inizio ricerca aree...")
+        
         try:
             # Metodo 1: Prova API Area Registry (richiede hassio_role: homeassistant)
+            bashio.log_info("📡 Tentativo accesso Area Registry API...")
             response = requests.get(f"{self.base_url}/config/area_registry", headers=self.headers, timeout=5)
             if response.status_code == 200:
                 area_registry = response.json()
+                bashio.log_info(f"✅ Area Registry API successo! Trovate {len(area_registry)} aree registrate")
                 if area_registry:
                     # Ottieni dispositivi per ogni area registrata
                     real_areas = []
@@ -110,8 +114,12 @@ class HomeAssistantAPI:
             bashio.log_error(f"Errore accesso Area Registry: {e}")
         
         # Metodo 2: Scopri aree dai dispositivi esistenti
+        bashio.log_info("🔍 Tentativo discovery automatica dalle entità...")
         try:
-            response = requests.get(f"{self.base_url}/states", headers=self.headers, timeout=5)
+            bashio.log_info(f"📡 Chiamata API /states su {self.base_url}/states")
+            response = requests.get(f"{self.base_url}/states", headers=self.headers, timeout=10)
+            bashio.log_info(f"📡 Response status: {response.status_code}")
+            
             if response.status_code == 200:
                 states = response.json()
                 bashio.log_info(f"🔍 Analizzando {len(states)} entità da Home Assistant...")
@@ -150,6 +158,8 @@ class HomeAssistantAPI:
                     "lavanderia": "lavanderia", "laundry": "lavanderia"
                 }
                 
+                bashio.log_info(f"🔍 Cerco parole chiave: {list(keyword_map.keys())}")
+                
                 # Analizza ogni entità per scoprire aree
                 for state in states:
                     entity_id = state["entity_id"]
@@ -185,9 +195,11 @@ class HomeAssistantAPI:
                     return [{"id": area["id"], "name": area["name"]} for area in real_areas]
                 else:
                     bashio.log_warning("⚠️ Nessuna area scoperta dai dispositivi trovati!")
+            else:
+                bashio.log_error(f"❌ Errore API /states: {response.status_code} - {response.text}")
                 
         except Exception as e:
-            bashio.log_error(f"Errore analisi dispositivi reali: {e}")
+            bashio.log_error(f"❌ Errore analisi dispositivi reali: {e}")
         
         # NESSUN FALLBACK - Se non troviamo nulla, ritorniamo None
         bashio.log_error("❌ NESSUNA AREA TROVATA! Verifica che ci siano dispositivi controllabili in Home Assistant")

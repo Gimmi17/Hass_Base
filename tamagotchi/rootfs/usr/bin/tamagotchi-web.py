@@ -114,6 +114,26 @@ class HomeAssistantAPI:
             response = requests.get(f"{self.base_url}/states", headers=self.headers, timeout=5)
             if response.status_code == 200:
                 states = response.json()
+                bashio.log_info(f"🔍 Analizzando {len(states)} entità da Home Assistant...")
+                
+                # Debug: mostra tutti i dispositivi controllabili trovati
+                controllable_devices = []
+                for state in states:
+                    entity_id = state["entity_id"]
+                    domain = entity_id.split(".")[0]
+                    if domain in ["light", "switch", "fan", "climate", "cover", "media_player"]:
+                        friendly_name = state["attributes"].get("friendly_name", entity_id)
+                        controllable_devices.append(f"{entity_id} ({friendly_name})")
+                
+                if controllable_devices:
+                    bashio.log_info(f"✅ Trovati {len(controllable_devices)} dispositivi controllabili:")
+                    for device in controllable_devices[:10]:  # Mostra primi 10
+                        bashio.log_info(f"  - {device}")
+                    if len(controllable_devices) > 10:
+                        bashio.log_info(f"  ... e altri {len(controllable_devices) - 10} dispositivi")
+                else:
+                    bashio.log_warning("⚠️ Nessun dispositivo controllabile trovato!")
+                
                 discovered_areas = {}
                 
                 # Mappa parole chiave comuni a ID area
@@ -150,6 +170,7 @@ class HomeAssistantAPI:
                                         "device_count": 0
                                     }
                                 discovered_areas[area_id]["device_count"] += 1
+                                bashio.log_info(f"🎯 Trovato dispositivo per area '{area_id}': {entity_id}")
                                 break
                 
                 # Ritorna solo le aree che hanno almeno 1 dispositivo
@@ -162,6 +183,8 @@ class HomeAssistantAPI:
                     
                     # Rimuovi il conteggio per l'output finale
                     return [{"id": area["id"], "name": area["name"]} for area in real_areas]
+                else:
+                    bashio.log_warning("⚠️ Nessuna area scoperta dai dispositivi trovati!")
                 
         except Exception as e:
             bashio.log_error(f"Errore analisi dispositivi reali: {e}")

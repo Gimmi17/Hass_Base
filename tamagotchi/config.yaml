@@ -1,6 +1,6 @@
 ---
 name: "Tamagotchi Home Assistant Integration"
-version: 1.1.6
+version: 1.1.7
 slug: tamagotchi
 description: "Il tuo Tamagotchi virtuale che controlla la casa smart! 🐣🏠"
 url: https://github.com/Gimmi17/Hass_Base

@@ -41,11 +41,15 @@ app.config['SECRET_KEY'] = 'tamagotchi_secret_key'
 
 class HomeAssistantAPI:
     def __init__(self):
-        # Home Assistant Supervisor API - Fix del path corretto
-        self.base_url = "http://supervisor/core/api"
-        self.token = ""
+        # Prova entrambi gli endpoint possibili
+        self.endpoints = [
+            "http://supervisor/core/api",  # Endpoint Supervisor (attuale)
+            "http://homeassistant:8123/api"  # Endpoint diretto HA
+        ]
+        self.base_url = None
+        self.headers = None
         
-        # Prova a ottenere il token in vari modi
+        # Ottieni token
         try:
             # Metodo 1: Variabile ambiente standard
             self.token = os.environ.get('SUPERVISOR_TOKEN')
@@ -69,35 +73,46 @@ class HomeAssistantAPI:
             if not self.token:
                 bashio.log_warning("Token Home Assistant non trovato - usando dispositivi mock")
                 self.use_mock = True
+                return
             else:
                 # Debug token (solo primi/ultimi caratteri per sicurezza)
                 token_preview = f"{self.token[:8]}...{self.token[-8:]}" if len(self.token) > 16 else "TOKEN_TROPPO_CORTO"
                 bashio.log_info(f"🔑 Token HA: {token_preview} (lunghezza: {len(self.token)})")
                 bashio.log_info("✅ Token Home Assistant ottenuto con successo")
                 
-                # Test immediato connessione
-                test_headers = {
+                # Test tutti gli endpoint per trovare quello che funziona
+                self.headers = {
                     'Authorization': f'Bearer {self.token}',
                     'Content-Type': 'application/json'
                 }
-                try:
-                    test_response = requests.get(f"{self.base_url}/", headers=test_headers, timeout=5)
-                    bashio.log_info(f"🔗 Test connessione HA API: {test_response.status_code}")
-                    if test_response.status_code != 200:
-                        bashio.log_warning(f"⚠️ Possibili problemi di autorizzazione: {test_response.text}")
-                except Exception as e:
-                    bashio.log_error(f"❌ Test connessione fallito: {e}")
                 
-                self.use_mock = False
+                working_endpoint = None
+                for endpoint in self.endpoints:
+                    try:
+                        bashio.log_info(f"🔗 Test endpoint: {endpoint}")
+                        test_response = requests.get(f"{endpoint}/", headers=self.headers, timeout=5)
+                        bashio.log_info(f"📡 Response: {test_response.status_code}")
+                        
+                        if test_response.status_code == 200:
+                            working_endpoint = endpoint
+                            bashio.log_info(f"✅ Endpoint funzionante trovato: {endpoint}")
+                            break
+                        else:
+                            bashio.log_warning(f"❌ Endpoint {endpoint} fallito: {test_response.status_code}")
+                    except Exception as e:
+                        bashio.log_warning(f"❌ Errore test endpoint {endpoint}: {e}")
+                
+                if working_endpoint:
+                    self.base_url = working_endpoint
+                    self.use_mock = False
+                    bashio.log_info(f"🎯 Usando endpoint: {self.base_url}")
+                else:
+                    bashio.log_error("❌ Nessun endpoint HA funzionante trovato!")
+                    self.use_mock = True
                 
         except Exception as e:
             bashio.log_error(f"Errore ottenimento token: {e}")
             self.use_mock = True
-            
-        self.headers = {
-            'Authorization': f'Bearer {self.token}',
-            'Content-Type': 'application/json'
-        }
     
     def get_areas(self):
         """Ottiene SOLO le aree reali che hanno dispositivi effettivi"""

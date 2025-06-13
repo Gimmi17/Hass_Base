@@ -480,15 +480,48 @@
         async function loadTamagotchiState() {
             try {
                 const response = await fetch('/api/state');
-                const state = await response.json();
-                currentState = state;
-                updateUI(state);
+                const data = await response.json();
+                
+                if (data.error) {
+                    // Errore: nessuna stanza trovata
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('main-content').style.display = 'block';
+                    showNoRoomsError(data.message, data.details);
+                    return;
+                }
+                
+                currentState = data;
+                updateUI(data);
                 document.getElementById('loading').style.display = 'none';
                 document.getElementById('main-content').style.display = 'block';
             } catch (error) {
                 console.error('Errore nel caricamento stato:', error);
                 setTimeout(loadTamagotchiState, 5000); // Riprova tra 5 secondi
             }
+        }
+
+        function showNoRoomsError(message, details) {
+            // Nascondi sezioni che richiedono stanze
+            document.querySelector('.rooms-section').style.display = 'none';
+            document.querySelector('.devices-section').style.display = 'none';
+            
+            // Mostra messaggio di errore
+            const messageArea = document.getElementById('message');
+            messageArea.innerHTML = `
+                <div style="text-align: center; padding: 20px; background: #ffebee; border-radius: 10px; margin: 20px 0;">
+                    <h3 style="color: #c62828; margin-bottom: 10px;">${message}</h3>
+                    <p style="color: #555; margin-bottom: 15px;">${details}</p>
+                    <div style="background: #f5f5f5; padding: 15px; border-radius: 8px; text-align: left;">
+                        <strong>Come risolvere:</strong>
+                        <ul style="margin: 10px 0; padding-left: 20px;">
+                            <li>Verifica che ci siano dispositivi in Home Assistant</li>
+                            <li>I dispositivi devono avere nomi che contengano parole come: "salotto", "cucina", "camera", "bagno", ecc.</li>
+                            <li>Esempi: "light.salotto_principale", "switch.cucina_luce", "sensor.camera_temperatura"</li>
+                            <li>Riavvia l'add-on dopo aver aggiunto dispositivi</li>
+                        </ul>
+                    </div>
+                </div>
+            `;
         }
 
         // Funzioni di utilità
@@ -593,14 +626,30 @@
             document.getElementById('age').textContent = state.stats.age_days || 0;
             document.getElementById('care-score').textContent = Math.round(state.total_care_score || 100);
             
-            // Aggiorna stanza corrente
-            const currentRoom = state.current_room || 'living_room';
-            const roomName = state.rooms ? state.rooms.find(r => r.id === currentRoom)?.name || 'Sconosciuta' : 'Salotto';
-            document.getElementById('current-room-name').textContent = roomName;
+            // Aggiorna stanza corrente (se disponibile)
+            if (state.rooms && state.rooms.length > 0) {
+                const currentRoom = state.current_room || state.rooms[0].id;
+                const roomName = state.rooms.find(r => r.id === currentRoom)?.name || 'Sconosciuta';
+                document.getElementById('current-room-name').textContent = roomName;
+                
+                // Aggiorna avatar e stadio (con contesto della stanza)
+                const avatar = getAvatarForStage(state.evolution_stage, state.status, currentRoom);
+                document.getElementById('avatar').textContent = avatar;
+                
+                // Aggiorna stanze
+                updateRooms(state.rooms, currentRoom);
+                
+                // Aggiorna dispositivi
+                if (state.current_room_devices) {
+                    updateDevices(state.current_room_devices, roomName);
+                }
+            } else {
+                // Nessuna stanza disponibile
+                document.getElementById('current-room-name').textContent = 'N/A';
+                const avatar = getAvatarForStage(state.evolution_stage, state.status, 'unknown');
+                document.getElementById('avatar').textContent = avatar;
+            }
             
-            // Aggiorna avatar e stadio (con contesto della stanza)
-            const avatar = getAvatarForStage(state.evolution_stage, state.status, currentRoom);
-            document.getElementById('avatar').textContent = avatar;
             document.getElementById('evolution-stage').textContent = getStageDisplayName(state.evolution_stage);
             
             // Aggiorna stato
@@ -613,16 +662,6 @@
             updateStat('happiness', state.stats.happiness);
             updateStat('health', state.stats.health);
             updateStat('energy', state.stats.energy);
-
-            // Aggiorna stanze
-            if (state.rooms) {
-                updateRooms(state.rooms, currentRoom);
-            }
-
-            // Aggiorna dispositivi
-            if (state.current_room_devices) {
-                updateDevices(state.current_room_devices, roomName);
-            }
         }
 
         function updateStat(statName, value) {

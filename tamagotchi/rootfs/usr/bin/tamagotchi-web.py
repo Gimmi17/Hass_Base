@@ -166,9 +166,9 @@ class HomeAssistantAPI:
         except Exception as e:
             bashio.log_error(f"Errore analisi dispositivi reali: {e}")
         
-        # Ultimo fallback: almeno il salotto se non troviamo nulla
-        bashio.log_warning("⚠️ Nessuna area trovata, usando fallback minimo")
-        return [{"id": "salotto", "name": "Casa"}]
+        # NESSUN FALLBACK - Se non troviamo nulla, ritorniamo None
+        bashio.log_error("❌ NESSUNA AREA TROVATA! Verifica che ci siano dispositivi controllabili in Home Assistant")
+        return None
     
     def get_area_devices_for_validation(self, area_id, area_name):
         """Metodo di validazione per controllare se un'area ha dispositivi (per Area Registry)"""
@@ -461,9 +461,21 @@ def index():
 def get_state():
     """API per ottenere lo stato del Tamagotchi"""
     state = tamagotchi.load_state()
+    
+    # Ottieni aree - gestisci il caso None
+    areas = ha_api.get_areas()
+    if areas is None:
+        # Nessuna area trovata - ritorna errore
+        return jsonify({
+            'error': True,
+            'message': '❌ NESSUNA STANZA TROVATA!',
+            'details': 'Verifica che ci siano dispositivi controllabili (luci, interruttori, ventilatori, ecc.) in Home Assistant con nomi che contengano parole come "salotto", "cucina", "camera", ecc.',
+            'tamagotchi': state
+        }), 404
+    
     # Aggiungi informazioni sulle stanze e dispositivi
-    current_room = state.get('current_room', 'living_room')
-    state['rooms'] = ha_api.get_areas()
+    current_room = state.get('current_room', areas[0]['id'] if areas else 'unknown')
+    state['rooms'] = areas
     state['current_room_devices'] = ha_api.get_area_devices(current_room)
     return jsonify(state)
 
@@ -471,6 +483,12 @@ def get_state():
 def get_rooms():
     """API per ottenere la lista delle stanze"""
     rooms = ha_api.get_areas()
+    if rooms is None:
+        return jsonify({
+            'error': True,
+            'message': '❌ NESSUNA STANZA TROVATA!',
+            'details': 'Verifica che ci siano dispositivi controllabili in Home Assistant'
+        }), 404
     return jsonify(rooms)
 
 @app.route('/api/room/<room_id>/devices')

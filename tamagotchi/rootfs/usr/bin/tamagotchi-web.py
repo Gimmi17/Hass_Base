@@ -70,7 +70,24 @@ class HomeAssistantAPI:
                 bashio.log_warning("Token Home Assistant non trovato - usando dispositivi mock")
                 self.use_mock = True
             else:
-                bashio.log_info("Token Home Assistant ottenuto con successo")
+                # Debug token (solo primi/ultimi caratteri per sicurezza)
+                token_preview = f"{self.token[:8]}...{self.token[-8:]}" if len(self.token) > 16 else "TOKEN_TROPPO_CORTO"
+                bashio.log_info(f"🔑 Token HA: {token_preview} (lunghezza: {len(self.token)})")
+                bashio.log_info("✅ Token Home Assistant ottenuto con successo")
+                
+                # Test immediato connessione
+                test_headers = {
+                    'Authorization': f'Bearer {self.token}',
+                    'Content-Type': 'application/json'
+                }
+                try:
+                    test_response = requests.get(f"{self.base_url}/", headers=test_headers, timeout=5)
+                    bashio.log_info(f"🔗 Test connessione HA API: {test_response.status_code}")
+                    if test_response.status_code != 200:
+                        bashio.log_warning(f"⚠️ Possibili problemi di autorizzazione: {test_response.text}")
+                except Exception as e:
+                    bashio.log_error(f"❌ Test connessione fallito: {e}")
+                
                 self.use_mock = False
                 
         except Exception as e:
